@@ -70,6 +70,9 @@ def create_app():
     @app.route("/predict", methods=["POST"])
     def predict_route():
         try:
+            # Basic server-side logging for debugging
+            # Note: keep lightweight to avoid noisy logs
+            # print(f"/predict content-type: {request.headers.get('Content-Type')}")
             data = request.get_json(silent=True) or {}
             text = (data.get("text") or "").strip()
             threshold = data.get("threshold", DEFAULT_THRESHOLD)
@@ -89,6 +92,25 @@ def create_app():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+    # Ensure JSON-style errors for API consumers hitting /predict by mistake
+    @app.errorhandler(404)
+    def not_found(e):
+        if request.path.startswith("/predict"):
+            return jsonify({"error": "Not found", "path": request.path}), 404
+        return e
+
+    @app.errorhandler(405)
+    def method_not_allowed(e):
+        if request.path.startswith("/predict"):
+            return jsonify({"error": "Method not allowed", "path": request.path}), 405
+        return e
+
+    @app.errorhandler(500)
+    def internal_error(e):
+        if request.path.startswith("/predict"):
+            return jsonify({"error": "Internal server error"}), 500
+        return e
+
     return app
 
 
@@ -96,108 +118,3 @@ if __name__ == "__main__":
     app = create_app()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
-from flask import Flask, render_template, request, jsonify
-import joblib
-import os
-import re
-import pandas as pd
-from sklearn.base import BaseEstimator, TransformerMixin
-
-
-class TextCleaner(BaseEstimator, TransformerMixin):
-    """Same TextCleaner class used in train_and_save.py - needed for unpickling the pipeline"""
-    def __init__(self):
-        pass
-
-    def fit(self, X, y=None):
-        return self
-
-    def transform(self, X):
-        # X expected to be an iterable of strings
-        return [self.clean_text(text) for text in pd.Series(X).fillna("")]
-
-    @staticmethod
-    def clean_text(text):
-        text = str(text).lower()
-        text = re.sub(r'http\S+|www\S+', '', text)
-        text = re.sub(r'<.*?>', '', text)
-        text = re.sub(r'[^a-z\s]', '', text)
-        text = re.sub(r'\s+', ' ', text).strip()
-        return text
-
-
-app = Flask(__name__)
-
-# Try to load pipeline.joblib from a few common locations so the server can be
-# started from different working directories. Prefer the file next to this app
-# (web_app/pipeline.joblib), then the project root (../pipeline.joblib), then
-# the current working directory.
-def load_pipeline():
-    candidates = [
-        os.path.join(os.path.dirname(__file__), 'pipeline.joblib'),
-        os.path.join(os.path.dirname(__file__), '..', 'pipeline.joblib'),
-        'pipeline.joblib'
-    ]
-    print(f"DEBUG: __file__ = {__file__}")
-    print(f"DEBUG: os.path.dirname(__file__) = {os.path.dirname(__file__)}")
-    for path in candidates:
-        try:
-            abs_path = os.path.abspath(path)
-            exists = os.path.exists(abs_path)
-            print(f"DEBUG: Trying {abs_path} - exists: {exists}")
-            if exists:
-                loaded = joblib.load(abs_path)
-                print(f"SUCCESS: Loaded pipeline from {abs_path}")
-                return loaded
-        except Exception as e:
-            print(f"DEBUG: Error loading from {abs_path}: {e}")
-            continue
-    return None
-
-pipeline = load_pipeline()
-if pipeline is None:
-    print('Warning: pipeline.joblib not found. Run the training script (train_and_save.py) and place pipeline.joblib in the project root or web_app/ folder.')
-
-labels = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
-
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-
-@app.route('/predict', methods=['POST'])
-def predict():
-    if pipeline is None:
-        return jsonify({'error': 'Model not loaded. Run the training script first and ensure pipeline.joblib is located in the project root or web_app folder.'}), 500
-
-    data = request.get_json() or {}
-    text = data.get('text', '')
-    if not text:
-        return jsonify({'error': 'No text provided.'}), 400
-
-    # pipeline includes cleaning + vectorizer + classifier
-    probs = None
-    try:
-        probs = pipeline.predict_proba([text])
-    except Exception:
-        # fallback: predict only
-        preds = pipeline.predict([text])[0]
-        out_labels = [label for label, v in zip(labels, preds) if v == 1]
-        return jsonify({'labels': out_labels})
-
-    probs = probs[0]
-    threshold = 0.5
-    out_labels = [label for label, p in zip(labels, probs) if p >= threshold]
-    detailed = [{'label': label, 'probability': float(p)} for label, p in zip(labels, probs)]
-
-    return jsonify({'labels': out_labels, 'detailed': detailed})
-
-
-@app.route('/status')
-def status():
-    return jsonify({'model_loaded': pipeline is not None})
-
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)

@@ -77,8 +77,15 @@ async function doPredict() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, threshold })
     });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data?.error || resp.statusText);
+    const ct = resp.headers.get('content-type') || '';
+    let data;
+    if (ct.includes('application/json')) {
+      data = await resp.json();
+      if (!resp.ok) throw new Error(data?.error || resp.statusText);
+    } else {
+      const textBody = await resp.text();
+      throw new Error(`Non-JSON response (${resp.status}): ${textBody.slice(0, 200)}`);
+    }
     renderChips(data.labels);
     renderBars(data.detailed);
     // Show threshold used (from server response to reflect clamping)
