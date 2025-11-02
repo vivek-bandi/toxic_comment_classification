@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Toxic Comment Classifier</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Toxic Comment Classifier</h1>
+        <p class="subtitle">Multi‑label detection: toxic • offensive • abusive</p>
+      </header>
+
+      <section class="card">
+        <label for="text-input" class="label">Enter a comment</label>
+        <textarea id="text-input" placeholder="Type or paste a comment..."></textarea>
+
+        <div class="controls">
+          <div class="threshold">
+            <label for="threshold">Threshold: <span id="thresh-val">0.50</span></label>
+            <input type="range" id="threshold" min="0" max="1" step="0.01" value="0.5" />
+          </div>
+          <button id="predict-btn" class="btn">Predict</button>
+        </div>
+
+        <div id="status" class="status" hidden>
+          <div class="spinner"></div>
+          <span>Running inference…</span>
+        </div>
+      </section>
+
+      <section id="output" class="card" hidden>
+        <div class="output-head">
+          <h3>Predicted labels</h3>
+          <div class="muted">Threshold used: <span id="out-threshold">0.50</span></div>
+        </div>
+        <div id="labels" class="labels"></div>
+
+        <h3>Probabilities</h3>
+        <div id="probs" class="probs"></div>
+      </section>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+  </html>
