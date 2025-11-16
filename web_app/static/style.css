@@ -44,10 +44,12 @@ textarea::placeholder { color: #8390a7; }
 
 .probs { display: grid; gap: 10px; }
 .bar-row { display:flex; align-items:center; gap: 12px; }
-.bar { flex:1; height: 10px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; border: 1px solid rgba(255,255,255,0.12); }
-.bar > .fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--ok), var(--warn), var(--bad)); transition: width .35s ease; }
+.bar { flex:1; height: 10px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; border: 1px solid rgba(255,255,255,0.12); position: relative; }
+.bar > .fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--ok), var(--warn), var(--bad)); transition: width .35s ease; position: relative; z-index: 2; }
+.confidence-indicator { position: absolute; top: 0; left: 0; height: 100%; background: rgba(110, 168, 254, 0.3); transition: width .35s ease, opacity .35s ease; z-index: 1; opacity: 0; }
 .bar-label { width: 110px; color: var(--muted); font-size: 13px; }
-.bar-val { width: 56px; text-align: right; font-variant-numeric: tabular-nums; color: #cdd5e1; font-size: 13px; }
+.bar-val { width: 100px; text-align: right; font-variant-numeric: tabular-nums; color: #cdd5e1; font-size: 13px; }
+.conf-badge { font-size: 11px; color: var(--accent); margin-left: 4px; }
 
 .output-head { display:flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .muted { color: var(--muted); font-size: 13px; }

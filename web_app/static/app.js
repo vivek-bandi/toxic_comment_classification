@@ -33,30 +33,46 @@ function renderChips(predicted) {
   });
 }
 
-function renderBars(detailed) {
+function renderBars(detailed, confidence, uncertainty) {
   const probs = el('#probs');
   probs.innerHTML = '';
   LABELS.forEach(label => {
     const p = detailed?.[label] ?? 0;
+    const conf = confidence?.[label] ?? 1.0;
+    const unc = uncertainty?.[label] ?? 0.0;
+    
     const row = document.createElement('div');
     row.className = 'bar-row';
+    
     const name = document.createElement('div');
     name.className = 'bar-label';
     name.textContent = label;
+    
     const bar = document.createElement('div');
     bar.className = 'bar';
     const fill = document.createElement('div');
     fill.className = 'fill';
+    
+    // Add confidence indicator as overlay
+    const confIndicator = document.createElement('div');
+    confIndicator.className = 'confidence-indicator';
+    confIndicator.style.width = (conf * 100) + '%';
+    
     const val = document.createElement('div');
     val.className = 'bar-val';
-    val.textContent = (p * 100).toFixed(1) + '%';
+    val.innerHTML = `${(p * 100).toFixed(1)}% <span class="conf-badge" title="Confidence: ${(conf * 100).toFixed(0)}%">±${(unc * 100).toFixed(1)}%</span>`;
+    
     // Append then animate for smoothness
     bar.appendChild(fill);
+    bar.appendChild(confIndicator);
     row.appendChild(name);
     row.appendChild(bar);
     row.appendChild(val);
     probs.appendChild(row);
-    requestAnimationFrame(() => { fill.style.width = Math.max(0, Math.min(100, p * 100)) + '%'; });
+    requestAnimationFrame(() => { 
+      fill.style.width = Math.max(0, Math.min(100, p * 100)) + '%';
+      confIndicator.style.opacity = '0.3';
+    });
   });
 }
 
@@ -87,7 +103,7 @@ async function doPredict() {
       throw new Error(`Non-JSON response (${resp.status}): ${textBody.slice(0, 200)}`);
     }
     renderChips(data.labels);
-    renderBars(data.detailed);
+    renderBars(data.detailed, data.confidence, data.uncertainty);
     // Show threshold used (from server response to reflect clamping)
     el('#out-threshold').textContent = Number(data?.threshold ?? threshold).toFixed(2);
     el('#output').hidden = false;
